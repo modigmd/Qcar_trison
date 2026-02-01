@@ -44,4 +44,4 @@ Python (perception + control) --UDP--> MATLAB (QUARC bridge) ---> QLabs (simulat
 
 ## Authors
 
-Trisum Team
+Trison Team
