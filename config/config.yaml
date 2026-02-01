@@ -1,0 +1,188 @@
+# QCar Autonomous Driving System Configuration
+# Based on ODU AV Team Architecture
+
+# =============================================================================
+# SYSTEM CONFIGURATION
+# =============================================================================
+system:
+  name: "QCar_AV_System"
+  version: "1.0.0"
+  debug_mode: true
+  log_level: "INFO"
+
+# =============================================================================
+# QLABS CONFIGURATION
+# =============================================================================
+qlabs:
+  # QLabs server address (usually localhost)
+  host: "localhost"
+  # Connection timeout in seconds
+  timeout: 10.0
+
+  # QCar actor number - CRITICAL: Must match the QCar spawned by MATLAB
+  # Run test_qlabs_camera.py to autodetect this value
+  # Usually 0 for single QCar, may be different if multiple cars spawned
+  qcar_actor_number: 0
+
+  # Camera to use: 'front', 'back', 'left', 'right', 'rgb'
+  # - front/back/left/right: CSI cameras (820x410)
+  # - rgb: RGB camera (640x480)
+  camera: "front"
+
+  # Number of warmup frames to discard (helps stability)
+  warmup_frames: 2
+
+# =============================================================================
+# CAMERA CONFIGURATION
+# =============================================================================
+cameras:
+  front:
+    id: 0
+    resolution: [820, 410]
+    fov: 90
+    enabled: true
+  left:
+    id: 1
+    resolution: [820, 410]
+    enabled: true
+  right:
+    id: 2
+    resolution: [820, 410]
+    enabled: true
+  rear:
+    id: 3
+    resolution: [820, 410]
+    enabled: false
+
+# =============================================================================
+# TRAFFIC LIGHT DETECTION (HSV)
+# =============================================================================
+traffic_light:
+  enabled: true
+  # HSV thresholds for red light detection
+  red:
+    lower: [0, 100, 100]
+    upper: [10, 255, 255]
+    lower2: [160, 100, 100]  # Red wraps around in HSV
+    upper2: [180, 255, 255]
+  # HSV thresholds for green light detection
+  green:
+    lower: [40, 50, 50]
+    upper: [90, 255, 255]
+  # HSV thresholds for yellow light detection
+  yellow:
+    lower: [15, 100, 100]
+    upper: [35, 255, 255]
+  # Detection parameters
+  min_area: 100  # Minimum blob area in pixels
+  max_area: 10000  # Maximum blob area
+  aspect_ratio_range: [0.5, 2.0]  # Expected aspect ratio range
+  # Region of interest (ROI) for traffic light detection [x, y, width, height] as ratios
+  roi: [0.3, 0.0, 0.4, 0.5]  # Upper middle portion of frame
+
+# =============================================================================
+# PERSON DETECTION (YOLO)
+# =============================================================================
+person_detection:
+  enabled: true
+  model: "yolov8n.pt"  # YOLOv8 nano - fast and lightweight
+  confidence_threshold: 0.5
+  # Only detect 'person' class (class 0 in COCO)
+  classes: [0]
+  # Detection zone for pickup (relative to frame)
+  pickup_zone:
+    x_min: 0.0
+    x_max: 0.4  # Left side of frame (curb side)
+    y_min: 0.3
+    y_max: 0.9
+
+# =============================================================================
+# LANE DETECTION
+# =============================================================================
+lane_detection:
+  enabled: true
+  # Yellow line detection (left lane marker)
+  yellow_line:
+    lower: [15, 80, 80]
+    upper: [35, 255, 255]
+  # White line/curb detection (right lane marker)
+  white_curb:
+    lower: [0, 0, 200]
+    upper: [180, 30, 255]
+  # ROI for lane detection (lower portion of frame)
+  roi: [0.0, 0.5, 1.0, 0.5]
+
+# =============================================================================
+# STANLEY CONTROLLER PARAMETERS
+# =============================================================================
+stanley_controller:
+  # Cross-track error gain
+  k: 2.5
+  # Softening constant (prevents division by zero at low speeds)
+  epsilon: 0.1
+  # Maximum steering angle (radians)
+  max_steering: 0.5
+  # Steering rate limit (rad/s)
+  steering_rate_limit: 0.8
+
+# =============================================================================
+# SPEED CONTROL
+# =============================================================================
+speed_control:
+  # Default cruising speed (m/s)
+  cruise_speed: 0.3
+  # Speed at turns
+  turn_speed: 0.2
+  # Speed approaching traffic lights
+  approach_speed: 0.25
+  # Braking deceleration (m/s^2)
+  braking_decel: 1.0
+
+# =============================================================================
+# STATE MACHINE
+# =============================================================================
+state_machine:
+  # Pickup wait duration (seconds)
+  pickup_wait_time: 3.0
+  # Minimum green light detection frames before GO
+  green_confirm_frames: 5
+  # Stop distance from detected person (meters)
+  person_stop_distance: 0.5
+
+# =============================================================================
+# COMMUNICATION (Python <-> MATLAB)
+# =============================================================================
+communication:
+  # Communication method: "udp", "tcp", or "file"
+  method: "udp"
+
+  # UDP Configuration
+  udp:
+    # Python sends to MATLAB on this port
+    matlab_host: "127.0.0.1"
+    matlab_port: 5005
+    # Python listens on this port
+    python_host: "127.0.0.1"
+    python_port: 5006
+
+  # TCP Configuration (alternative)
+  tcp:
+    host: "127.0.0.1"
+    port: 5007
+
+  # File-based communication (alternative)
+  file:
+    path: "./comm/vision_output.json"
+    poll_interval: 0.033  # ~30 Hz
+
+# =============================================================================
+# VISUAL DEBUGGING
+# =============================================================================
+debug:
+  show_camera_feed: true
+  show_detections: true
+  show_steering_info: true
+  show_state_info: true
+  window_scale: 1.0
+  save_frames: false
+  save_path: "./debug_frames/"
