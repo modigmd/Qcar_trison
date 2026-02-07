@@ -19,12 +19,21 @@ Author: QCar AV System
 
 from __future__ import annotations
 
+import os
+import sys
 import time
 from dataclasses import dataclass
 from typing import Optional, Tuple
 
 import numpy as np
 import cv2
+
+# Ensure QVL library is on the path (matches Setup_Competition_Map.m)
+_qal_dir = os.environ.get('QAL_DIR', '')
+if _qal_dir:
+    _qvl_path = os.path.join(_qal_dir, '0_libraries', 'python')
+    if _qvl_path not in sys.path and os.path.isdir(_qvl_path):
+        sys.path.insert(0, _qvl_path)
 
 # qvl imports - these MUST work or we fail
 from qvl.qlabs import QuanserInteractiveLabs

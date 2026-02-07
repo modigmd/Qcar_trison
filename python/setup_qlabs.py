@@ -1,26 +1,35 @@
 """
-QLabs Setup Script for QCar
+QLabs Setup Script for QCar2
 
-This script initializes the QLabs environment and spawns the QCar.
+This script initializes the QLabs environment and spawns the QCar2.
 Must be run BEFORE starting the vision system.
 
-Based on Quanser's Setup_Competition_Map.m but in Python.
+Based on Quanser's Setup_Competition_Map.m (official competition resource).
 
 Prerequisites:
 - QLabs must be running (Self-Driving Car Studio > Plane)
 - Quanser QVL library must be installed
+- QAL_DIR environment variable set (Quanser Academic Resources)
 
 Author: QCar AV System
 """
 
 import sys
+import os
 import time
 import numpy as np
+
+# Ensure QVL library is on the path (matches Setup_Competition_Map.m)
+qal_dir = os.environ.get('QAL_DIR', '')
+if qal_dir:
+    qvl_path = os.path.join(qal_dir, '0_libraries', 'python')
+    if qvl_path not in sys.path and os.path.isdir(qvl_path):
+        sys.path.insert(0, qvl_path)
 
 # Try to import QVL library
 try:
     from qvl.qlabs import QuanserInteractiveLabs
-    from qvl.qcar import QLabsQCar
+    from qvl.qcar2 import QLabsQCar2
     from qvl.free_camera import QLabsFreeCamera
     from qvl.traffic_light import QLabsTrafficLight
     from qvl.crosswalk import QLabsCrosswalk
@@ -33,24 +42,30 @@ except ImportError as e:
     print(f"QVL library not available: {e}")
     print("This script requires the Quanser QVL library.")
     print("Please ensure Quanser software is properly installed.")
+    print("Set the QAL_DIR environment variable to your Quanser Academic Resources path.")
     QVL_AVAILABLE = False
 
 
 # ============================================================================
 # SPAWN LOCATIONS
-# These match the Quanser competition map locations
+# These match the Quanser competition map (from Setup_Competition_Map.m)
+# Scale is 1/10 as per official competition setup
 # ============================================================================
+
+# Competition map offsets (from official Setup_Competition_Map.m)
+X_OFFSET = 0.13
+Y_OFFSET = 1.67
 
 SPAWN_LOCATIONS = {
     1: {
-        'position': [10.235, -3.355, 0.005],
-        'rotation': [0, 0, 180],  # degrees
-        'description': 'Start position near parking area'
+        'position': [-1.335, -2.5, 0.005],
+        'rotation': [0, 0, 45],
+        'description': 'Calibration start (default)'
     },
     2: {
-        'position': [-7.35, 3.36, 0.005],
-        'rotation': [0, 0, 90],
-        'description': 'Alternative start position'
+        'position': [1.5, 2.2, 0.005],
+        'rotation': [0, 0, 0],
+        'description': 'Taxi hub start'
     },
     3: {
         'position': [0, 0, 0.005],
@@ -59,16 +74,19 @@ SPAWN_LOCATIONS = {
     }
 }
 
+# QCar2 scale factor (official competition uses 1/10 scale)
+QCAR2_SCALE = [1/10, 1/10, 1/10]
+
 
 def setup_qlabs_environment(spawn_location: int = 1,
                             qcar_id: int = 0,
                             spawn_traffic: bool = True):
     """
-    Set up QLabs environment with QCar and optional traffic elements.
+    Set up QLabs environment with QCar2 and optional traffic elements.
 
     Args:
         spawn_location: Spawn location ID (1, 2, or 3)
-        qcar_id: QCar actor ID
+        qcar_id: QCar2 actor ID
         spawn_traffic: Whether to spawn traffic lights, signs, etc.
 
     Returns:
@@ -79,7 +97,7 @@ def setup_qlabs_environment(spawn_location: int = 1,
         return None, None
 
     print("=" * 60)
-    print("QLabs Setup Script for QCar")
+    print("QLabs Setup Script for QCar2")
     print("=" * 60)
 
     # Connect to QLabs
@@ -112,33 +130,39 @@ def setup_qlabs_environment(spawn_location: int = 1,
     position = spawn_config['position']
     rotation = spawn_config['rotation']
 
-    print(f"\n3. Spawning QCar at location {spawn_location}...")
+    print(f"\n3. Spawning QCar2 at location {spawn_location}...")
     print(f"   Position: {position}")
     print(f"   Rotation: {rotation}")
+    print(f"   Scale: {QCAR2_SCALE}")
     print(f"   Description: {spawn_config['description']}")
 
-    # Spawn QCar
+    # Spawn QCar2 (using QLabsQCar2, NOT the old QLabsQCar)
     try:
-        qcar = QLabsQCar(qlabs)
-        qcar.spawn_id(
+        qcar = QLabsQCar2(qlabs)
+        qcar.spawn_id_degrees(
             actorNumber=qcar_id,
             location=position,
             rotation=rotation,
-            scale=[1, 1, 1],
-            configuration=0,
+            scale=QCAR2_SCALE,
+            configuration=1,
             waitForConfirmation=True
         )
-        print("   QCar spawned successfully")
+        print("   QCar2 spawned successfully")
     except Exception as e:
-        print(f"   ERROR: Failed to spawn QCar: {e}")
+        print(f"   ERROR: Failed to spawn QCar2: {e}")
         return qlabs, None
 
     # Set up camera view
-    print("\n4. Setting up camera view...")
+    print("\n4. Setting up camera views...")
     try:
-        # Possess the QCar camera (third-person view)
-        qcar.possess(qcar.CAMERA_TRAILING)
-        print("   Camera set to trailing view")
+        # Bird's eye camera (matches official Setup_Competition_Map.m)
+        camera0 = QLabsFreeCamera(qlabs)
+        camera0.spawn_degrees(
+            location=[X_OFFSET, Y_OFFSET, 5],
+            rotation=[0, 90, 0]
+        )
+        camera0.possess()
+        print("   Bird's eye camera set")
     except Exception as e:
         print(f"   Warning: Could not set camera: {e}")
 
@@ -148,9 +172,9 @@ def setup_qlabs_environment(spawn_location: int = 1,
         spawn_traffic_elements(qlabs)
 
     print("\n" + "=" * 60)
-    print("Setup complete! QCar is ready.")
+    print("Setup complete! QCar2 is ready.")
     print("=" * 60)
-    print(f"\nQCar ID: {qcar_id}")
+    print(f"\nQCar2 actor ID: {qcar_id}")
     print("You can now run the vision system.")
 
     return qlabs, qcar
@@ -161,24 +185,26 @@ def spawn_traffic_elements(qlabs):
 
     # Traffic Light positions (approximate - adjust for your map)
     traffic_light_positions = [
-        {'pos': [5.55, 0.87, 0.0], 'rot': [0, 0, 0]},
-        {'pos': [-5.55, -0.87, 0.0], 'rot': [0, 0, 180]},
+        {'pos': [2.3 + X_OFFSET, Y_OFFSET, 0.0], 'rot': [0, 0, 0]},
+        {'pos': [-2.3 + X_OFFSET, -1 + Y_OFFSET, 0.0], 'rot': [0, 0, 180]},
     ]
 
     # Spawn traffic lights
     for i, tl in enumerate(traffic_light_positions):
         try:
             light = QLabsTrafficLight(qlabs)
-            light.spawn_id(
-                actorNumber=i,
+            light.spawn_degrees(
                 location=tl['pos'],
                 rotation=tl['rot'],
                 scale=[1, 1, 1],
                 configuration=0,
                 waitForConfirmation=True
             )
-            # Start with red light
-            light.set_state(state=QLabsTrafficLight.STATE_RED)
+            # Start with alternating states (first green, second red)
+            if i == 0:
+                light.set_state(state=QLabsTrafficLight.STATE_GREEN)
+            else:
+                light.set_state(state=QLabsTrafficLight.STATE_RED)
             print(f"   Spawned traffic light {i}")
         except Exception as e:
             print(f"   Warning: Could not spawn traffic light {i}: {e}")
@@ -191,8 +217,7 @@ def spawn_traffic_elements(qlabs):
     for i, ss in enumerate(stop_sign_positions):
         try:
             sign = QLabsStopSign(qlabs)
-            sign.spawn_id(
-                actorNumber=i,
+            sign.spawn_degrees(
                 location=ss['pos'],
                 rotation=ss['rot'],
                 scale=[1, 1, 1],
@@ -206,12 +231,11 @@ def spawn_traffic_elements(qlabs):
     # Spawn a pedestrian for pickup testing
     try:
         person = QLabsPerson(qlabs)
-        person.spawn_id(
-            actorNumber=0,
+        person.spawn_degrees(
             location=[6.0, -2.0, 0.0],
             rotation=[0, 0, 0],
             scale=[1, 1, 1],
-            configuration=0,  # Random appearance
+            configuration=0,
             waitForConfirmation=True
         )
         print("   Spawned pedestrian for pickup testing")
@@ -233,8 +257,10 @@ def traffic_light_controller(qlabs, cycle_time: float = 30.0):
     print("Press Ctrl+C to stop")
 
     try:
-        light0 = QLabsTrafficLight(qlabs, actorNumber=0)
-        light1 = QLabsTrafficLight(qlabs, actorNumber=1)
+        light0 = QLabsTrafficLight(qlabs)
+        light0.actorNumber = 0
+        light1 = QLabsTrafficLight(qlabs)
+        light1.actorNumber = 1
 
         while True:
             # Light 0 green, Light 1 red
@@ -263,11 +289,11 @@ def main():
     """Main entry point."""
     import argparse
 
-    parser = argparse.ArgumentParser(description='QLabs Setup for QCar')
+    parser = argparse.ArgumentParser(description='QLabs Setup for QCar2')
     parser.add_argument('--spawn', type=int, default=1, choices=[1, 2, 3],
                         help='Spawn location (1, 2, or 3)')
     parser.add_argument('--qcar-id', type=int, default=0,
-                        help='QCar actor ID')
+                        help='QCar2 actor ID')
     parser.add_argument('--no-traffic', action='store_true',
                         help='Do not spawn traffic elements')
     parser.add_argument('--run-traffic-controller', action='store_true',
@@ -278,7 +304,11 @@ def main():
     if not QVL_AVAILABLE:
         print("\nERROR: This script requires the Quanser QVL library.")
         print("Please ensure Quanser software is properly installed.")
-        print("\nAlternatively, use MATLAB to set up the environment:")
+        print("")
+        print("Set the QAL_DIR environment variable:")
+        print("  export QAL_DIR=/path/to/Quanser_Academic_Resources")
+        print("")
+        print("Alternatively, use MATLAB to set up the environment:")
         print("  1. Open QLabs")
         print("  2. Run Setup_Competition_Map.m in MATLAB")
         sys.exit(1)

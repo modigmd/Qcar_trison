@@ -68,27 +68,35 @@ STOP_PERSON = 2;
 PICKUP_WAIT = 3;
 STOP_SIGN = 4;
 
-%% Initialize QLabs and QCar
-fprintf('Initializing QLabs connection...\n');
+%% Initialize QLabs and QCar2
+fprintf('Initializing QLabs/QUARC connection...\n');
+
+% Add QVL MATLAB library path if QAL_DIR is set
+qal_dir = getenv('QAL_DIR');
+if ~isempty(qal_dir)
+    qvl_path = fullfile(qal_dir, '0_libraries', 'matlab', 'qvl');
+    if exist(qvl_path, 'dir')
+        addpath(qvl_path);
+        fprintf('Added QVL path: %s\n', qvl_path);
+    end
+end
 
 try
-    % Try to import Quanser libraries
-    % NOTE: These imports depend on your Quanser installation
-    % Adjust paths as needed for your setup
+    % Check if QUARC is available (needed for vehicle actuation)
+    % The self-driving stack uses Simulink + QUARC for real control.
+    % This script provides a standalone control loop for testing.
+    quarc_available = exist('qc_stop_model', 'file') == 2;
 
-    % Check if running in QLabs environment
-    qlabs_available = exist('QLabsOpen', 'file') == 2 || ...
-                      exist('qlabs', 'file') == 2;
-
-    if ~qlabs_available
-        fprintf('WARNING: QLabs libraries not found.\n');
+    if ~quarc_available
+        fprintf('WARNING: QUARC not found on MATLAB path.\n');
         fprintf('Running in simulation mode with mock vehicle.\n');
+        fprintf('For real vehicle control, use VIRTUAL_self_driving_stack_v2.slx\n');
         use_mock_vehicle = true;
     else
         use_mock_vehicle = false;
-        % Initialize QLabs connection
-        % qlabs = QLabs();
-        % qcar = QCar(config.qcar_id);
+        fprintf('QUARC detected. Vehicle control available.\n');
+        % In production, vehicle is controlled via Simulink model.
+        % For standalone mode, QUARC QCar2 API would be used here.
     end
 
 catch ME
@@ -255,7 +263,7 @@ try
             % qcar.setSteering(steering);
         end
 
-        %% 7. Send Feedback to Python
+        %% 7. Send Feedback to Python (via Java UDP - no toolboxes)
         if ~isempty(vision_msg)
             feedback = struct();
             feedback.timestamp = current_time;
@@ -268,7 +276,8 @@ try
             feedback.heading = vehicle_state.heading;
             feedback.last_vision_frame_id = vision_msg.frame_id;
 
-            udp_receiver.sendFeedback(feedback);
+            json_str = jsonencode(feedback);
+            udp_send_java(json_str, '127.0.0.1', config.udp.remote_port);
         end
 
         %% 8. Logging

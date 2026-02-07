@@ -76,13 +76,39 @@ class PersonDetector:
         if YOLO_AVAILABLE:
             self._load_model()
 
+    def _resolve_model_path(self) -> str:
+        """
+        Resolve the YOLO model path.
+
+        Searches in order:
+        1. Exact path as given (absolute or relative to cwd)
+        2. models/ directory at project root
+        3. Let ultralytics auto-download if just a model name like 'yolov8n.pt'
+        """
+        model_path = Path(self.model_name)
+
+        # If absolute path or exists at cwd
+        if model_path.is_absolute() or model_path.exists():
+            return str(model_path)
+
+        # Try models/ directory at project root
+        project_root = Path(__file__).parent.parent.parent
+        models_dir_path = project_root / "models" / self.model_name
+        if models_dir_path.exists():
+            return str(models_dir_path)
+
+        # Return as-is and let ultralytics handle download
+        return self.model_name
+
     def _load_model(self):
         """Load the YOLO model."""
+        resolved_path = self._resolve_model_path()
         try:
-            self.model = YOLO(self.model_name)
-            print(f"Loaded YOLO model: {self.model_name}")
+            self.model = YOLO(resolved_path)
+            print(f"Loaded YOLO model: {resolved_path}")
         except Exception as e:
-            print(f"Error loading YOLO model: {e}")
+            print(f"Error loading YOLO model '{resolved_path}': {e}")
+            print(f"Place model in: {Path(__file__).parent.parent.parent / 'models' / self.model_name}")
             self.model = None
 
     def _is_in_pickup_zone(self, box: Tuple[int, int, int, int],
